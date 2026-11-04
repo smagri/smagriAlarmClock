@@ -29,18 +29,21 @@ class AlarmStore(file: File) {
             val record = records.getJSONObject(index)
             val days = record.getJSONArray("repeatDays")
             AlarmListItem(
-                id = record.getString("id").also { require(it.isNotBlank()) },
+                id = record.getString("id"),
                 time = LocalTime.of(record.getInt("hour"), record.getInt("minute")),
                 repeatDays = (0 until days.length()).map { DayOfWeek.of(days.getInt(it)) }.toSet(),
                 label = record.getString("label"),
                 enabled = record.getBoolean("enabled"),
             )
         }
-        require(alarms.map { it.id }.distinct().size == alarms.size) { "Duplicate alarm IDs" }
+        validate(alarms)
         alarms
     }
 
     fun save(alarms: List<AlarmListItem>) = synchronized(lock) {
+        // Validate before opening the atomic file so invalid input cannot replace
+        // the last successfully saved configuration.
+        validate(alarms)
         val records = JSONArray()
         alarms.forEach { alarm ->
             records.put(JSONObject().apply {
@@ -61,6 +64,14 @@ class AlarmStore(file: File) {
         } catch (error: Exception) {
             file.failWrite(output)
             throw error
+        }
+    }
+
+    private fun validate(alarms: List<AlarmListItem>) {
+        require(alarms.all { it.id.isNotBlank() }) { "Blank alarm ID" }
+        require(alarms.map { it.id }.distinct().size == alarms.size) { "Duplicate alarm IDs" }
+        require(alarms.all { it.time.second == 0 && it.time.nano == 0 }) {
+            "Alarm times must have minute precision"
         }
     }
 }

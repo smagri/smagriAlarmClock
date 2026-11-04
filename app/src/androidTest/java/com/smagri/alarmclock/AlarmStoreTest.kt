@@ -2,6 +2,7 @@ package com.smagri.alarmclock
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import android.util.AtomicFile
 import com.smagri.alarmclock.data.AlarmStore
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
 import java.io.File
@@ -18,7 +19,7 @@ class AlarmStoreTest {
     private val file = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
         "alarm-store-test-${UUID.randomUUID()}.json")
 
-    @After fun cleanUp() { file.delete() }
+    @After fun cleanUp() { AtomicFile(file).delete() }
 
     @Test fun savesAllConfigurationAndReadsThroughNewStoreInstance() {
         val alarms = listOf(
@@ -51,5 +52,47 @@ class AlarmStoreTest {
         val store = AlarmStore(File(file, "alarms.json"))
         assertThrows(Exception::class.java) { store.save(emptyList()) }
         assertEquals("Existing file blocks a directory", file.readText())
+    }
+
+    @Test fun invalidSavePreservesPreviouslySavedConfiguration() {
+        val original = listOf(AlarmListItem("original", LocalTime.of(7, 0), label = "Keep me"))
+        val store = AlarmStore(file)
+        store.save(original)
+        val originalBytes = file.readBytes()
+        val alarm = original.single()
+        listOf(
+            listOf(alarm.copy(id = " ")),
+            listOf(alarm, alarm.copy(label = "Duplicate ID")),
+            listOf(alarm.copy(time = LocalTime.of(7, 0, 30))),
+            listOf(alarm.copy(time = LocalTime.of(7, 0, 0, 1))),
+        ).forEach { invalid ->
+            assertThrows(IllegalArgumentException::class.java) { store.save(invalid) }
+            assertArrayEquals(originalBytes, file.readBytes())
+            assertEquals(original, AlarmStore(file).load())
+        }
+    }
+
+    @Test fun unfinishedAtomicWriteKeepsLastCompletedSave() {
+        val original = listOf(AlarmListItem("original", LocalTime.of(6, 30), enabled = false))
+        AlarmStore(file).save(original)
+        // Simulate a process stopping after writing only part of a replacement,
+        // without finishWrite or failWrite being called.
+        AtomicFile(file).startWrite().use { it.write("{\"version\":".toByteArray()) }
+        assertEquals(original, AlarmStore(file).load())
+        val edited = original.map { it.copy(label = "Next complete save") }
+        AlarmStore(file).save(edited)
+        assertEquals(edited, AlarmStore(file).load())
+    }
+
+    @Test fun changesToOneAlarmDoNotChangeOtherSavedAlarms() {
+        val first = AlarmListItem("a", LocalTime.of(0, 0), setOf(DayOfWeek.MONDAY), "First")
+        val second = AlarmListItem("b", LocalTime.of(23, 59), setOf(DayOfWeek.SUNDAY), "", false)
+        AlarmStore(file).save(listOf(first, second))
+        val changed = first.copy(time = LocalTime.of(18, 15), repeatDays = DayOfWeek.entries.toSet(),
+            label = "Edited", enabled = false)
+        AlarmStore(file).save(listOf(changed, second))
+        assertEquals(listOf(changed, second), AlarmStore(file).load())
+        AlarmStore(file).save(listOf(second))
+        assertEquals(listOf(second), AlarmStore(file).load())
     }
 }

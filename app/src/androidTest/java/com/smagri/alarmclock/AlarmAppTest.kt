@@ -20,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.smagri.alarmclock.data.AlarmStore
 import com.smagri.alarmclock.ui.alarms.AlarmApp
+import android.util.AtomicFile
 import com.smagri.alarmclock.ui.theme.SmagriAlarmClockTheme
 import java.io.File
 import java.time.DayOfWeek
@@ -36,7 +37,11 @@ class AlarmAppTest {
     @get:Rule val compose = createComposeRule()
     private val file = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
         "alarm-app-test-${UUID.randomUUID()}.json")
-    @After fun cleanUp() { file.delete() }
+    private val blockedWrite = File("${file.path}.new")
+    @After fun cleanUp() {
+        blockedWrite.deleteRecursively()
+        AtomicFile(file).delete()
+    }
 
     private fun waitForText(text: String) {
         compose.waitUntil(10_000) {
@@ -97,6 +102,7 @@ class AlarmAppTest {
         clickText("Monday")
         clickText("Sunday")
         clickText("Save")
+        waitForText("Alarms")
         waitForText("Morning")
         val saved = AlarmStore(file).load().single()
         assertEquals(LocalTime.of(11, 45), saved.time)
@@ -107,6 +113,7 @@ class AlarmAppTest {
         clickText("Monday")
         clickText("Sunday")
         clickText("Save")
+        waitForText("Alarms")
         waitForText("Evening")
         compose.onNodeWithText("One-time").assertIsDisplayed()
         assertEquals(saved.id, AlarmStore(file).load().single().id)
@@ -138,5 +145,49 @@ class AlarmAppTest {
         clickText("Cancel")
         waitForText("No alarms yet. Tap + to add your first alarm.")
         assertTrue(AlarmStore(file).load().isEmpty())
+    }
+
+    @Test fun failedLoadPreservesDataAndRetryLoadsRecoveredFile() {
+        file.writeText("Malformed test fixture")
+        val store = AlarmStore(file)
+        compose.setContent { SmagriAlarmClockTheme { AlarmApp(store) } }
+        waitForText("Alarm storage error")
+        assertEquals("Malformed test fixture", file.readText())
+        compose.onNodeWithContentDescription("Add Alarm").assertIsNotEnabled()
+        // Repair only this test fixture, then exercise the user's Retry action.
+        store.save(emptyList())
+        compose.onNodeWithText("Retry").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithContentDescription("Add Alarm").fetchSemanticsNodes()
+                .any { !it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled) }
+        }
+        compose.onNodeWithText("No alarms yet. Tap + to add your first alarm.").assertIsDisplayed()
+    }
+
+    @Test fun failedSaveKeepsDraftAndPreviousDataUntilRetrySucceeds() {
+        val store = AlarmStore(file)
+        store.save(emptyList())
+        val original = file.readBytes()
+        compose.setContent { SmagriAlarmClockTheme { AlarmApp(store) } }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithContentDescription("Add Alarm").fetchSemanticsNodes()
+                .any { !it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled) }
+        }
+        // Prevent opening AtomicFile's temporary output without changing the
+        // successfully saved file or requiring storage permissions.
+        check(blockedWrite.mkdir())
+        File(blockedWrite, "blocker").writeText("test fixture")
+        compose.onNodeWithContentDescription("Add Alarm").performClick()
+        compose.onNodeWithText("Label (optional)").performTextInput("Keep this draft")
+        clickText("Save")
+        waitForText("Alarm storage error")
+        assertArrayEquals(original, file.readBytes())
+        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithText("Label (optional)").performScrollTo().assertTextContains("Keep this draft")
+        check(blockedWrite.deleteRecursively())
+        clickText("Save")
+        waitForText("Alarms")
+        waitForText("Keep this draft")
+        assertEquals("Keep this draft", AlarmStore(file).load().single().label)
     }
 }
