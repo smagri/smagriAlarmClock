@@ -1,0 +1,13 @@
+// Run connected tests against a different app ID. The normal phone installation
+// and its data must never be a target of the connected-test cleanup.
+gradle.beforeProject { project ->
+    if (project.path == ':app') {
+        project.plugins.withId('com.android.application') {
+            project.extensions.getByName('androidComponents').finalizeDsl { android ->
+                android.defaultConfig.applicationId = 'com.smagri.alarmclock.stage4tests'
+                android.defaultConfig.testApplicationId = 'com.smagri.alarmclock.stage4tests.test'
+                project.logger.lifecycle('Isolated Android test target: com.smagri.alarmclock.stage4tests')
+            }
+        }
+    }
+}

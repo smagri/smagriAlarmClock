@@ -95,4 +95,24 @@ class AlarmStoreTest {
         AlarmStore(file).save(listOf(second))
         assertEquals(listOf(second), AlarmStore(file).load())
     }
+
+    @Test fun versionOneConfigurationsMigrateWithoutLosingFields() {
+        file.writeText("""{"version":1,"alarms":[{"id":"legacy","hour":23,"minute":59,"repeatDays":[1,7],"label":"Original","enabled":false}]}""")
+        val original = AlarmListItem("legacy", LocalTime.of(23, 59),
+            setOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY), "Original", false)
+        assertEquals(listOf(original), AlarmStore(file).load())
+        AlarmStore(file).save(listOf(original))
+        assertEquals(2, org.json.JSONObject(file.readText()).getInt("version"))
+        assertEquals(listOf(original), AlarmStore(file).load())
+    }
+
+    @Test fun pendingAndDeliveredOccurrencesSurviveReload() {
+        val alarm = AlarmListItem("occurrence", LocalTime.of(7, 0),
+            scheduledAtMillis = 1_800_000_000_000L, lastDeliveredAtMillis = 1_799_913_600_000L)
+        AlarmStore(file).save(listOf(alarm))
+        assertEquals(listOf(alarm), AlarmStore(file).load())
+        val delivered = alarm.copy(scheduledAtMillis = null)
+        AlarmStore(file).save(listOf(delivered))
+        assertEquals(listOf(delivered), AlarmStore(file).load())
+    }
 }

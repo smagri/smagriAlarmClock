@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">smagriAlarmClock</string>
     <string name="alarms_title">Alarms</string>
-    <string name="configuration_notice">Alarm configurations are saved on this device. Alarms will not ring yet.</string>
+    <string name="configuration_notice">Alarm configurations are saved on this device. Scheduling is available; ringing will be added in Stage 5.</string>
     <string name="add_alarm">Add Alarm</string>
     <string name="edit_alarm">Edit Alarm</string>
     <string name="empty_alarms">No alarms yet. Tap + to add your first alarm.</string>
@@ -23,4 +23,12 @@
     <string name="save_failed">Your changes could not be saved. Please try again.</string>
     <string name="retry">Retry</string>
     <string name="ok">OK</string>
+    <string name="exact_permission_needed">Allow Alarms &amp; reminders access to schedule alarms accurately. Your configurations remain saved.</string>
+    <string name="allow_exact_alarms">Allow alarm scheduling</string>
+    <string name="not_scheduled">Not scheduled: alarm access required</string>
+    <string name="scheduling_failed">Your configurations are saved, but scheduling could not be completed. Reopen the app to retry.</string>
+    <string name="next_occurrence">Next: %1$s, %2$s</string>
+    <string name="time_reached">Time reached. Ringing and dismissal arrive in Stage 5. Toggle off/on to schedule again.</string>
+    <string name="schedule_pending">Schedule pending</string>
+    <string name="settings_unavailable">Android could not open alarm access settings. Open Alarms &amp; reminders in Android Settings.</string>
 </resources>

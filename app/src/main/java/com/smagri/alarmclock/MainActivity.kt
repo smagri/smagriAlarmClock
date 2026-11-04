@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.smagri.alarmclock.ui.alarms.AlarmApp
 import com.smagri.alarmclock.data.AlarmStore
+import com.smagri.alarmclock.scheduling.AlarmRepository
+import com.smagri.alarmclock.scheduling.AndroidAlarmScheduler
 import com.smagri.alarmclock.ui.theme.SmagriAlarmClockTheme
 import java.io.File
 
@@ -14,9 +16,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val store = AlarmStore(File(filesDir, "alarms.json"))
+        val repository = AlarmRepository(store, AndroidAlarmScheduler(applicationContext))
         setContent {
             SmagriAlarmClockTheme {
-                AlarmApp(store)
+                AlarmApp(store, repository)
             }
         }
     }

@@ -3,13 +3,15 @@ package com.smagri.alarmclock.ui.alarms
 import java.time.DayOfWeek
 import java.time.LocalTime
 
-/** Local alarm configuration; scheduling is implemented in a later stage. */
+/** Configuration plus the current occurrence; ringing is added in Stage 5. */
 data class AlarmListItem(
     val id: String,
     val time: LocalTime,
     val repeatDays: Set<DayOfWeek> = emptySet(),
     val label: String = "",
     val enabled: Boolean = true,
+    val scheduledAtMillis: Long? = null,
+    val lastDeliveredAtMillis: Long? = null,
 )
 
 val sampleAlarms = listOf(

@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.smagri.alarmclock", appContext.packageName)
+        assertEquals("com.smagri.alarmclock", appContext.packageName.removeSuffix(".stage4tests"))
     }
 }

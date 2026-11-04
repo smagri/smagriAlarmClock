@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import com.smagri.alarmclock.R
 import com.smagri.alarmclock.ui.theme.SmagriAlarmClockTheme
 import java.time.format.TextStyle
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun AlarmListScreen(
@@ -37,6 +42,10 @@ fun AlarmListScreen(
     onAdd: () -> Unit = {},
     onEdit: (AlarmListItem) -> Unit = {},
     onToggle: (AlarmListItem, Boolean) -> Unit = { _, _ -> },
+    showScheduling: Boolean = false,
+    permissionRequired: Boolean = false,
+    schedulingFailed: Boolean = false,
+    onRequestPermission: () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val formatter = alarmTimeFormatter()
@@ -67,6 +76,16 @@ fun AlarmListScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+            if (permissionRequired) {
+                Text(stringResource(R.string.exact_permission_needed), Modifier.padding(horizontal = 16.dp))
+                TextButton(onClick = onRequestPermission) {
+                    Text(stringResource(R.string.allow_exact_alarms))
+                }
+            }
+            if (schedulingFailed) {
+                Text(stringResource(R.string.scheduling_failed), Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.error)
+            }
             if (alarms.isEmpty()) {
                 Text(
                     stringResource(R.string.empty_alarms),
@@ -102,6 +121,20 @@ fun AlarmListScreen(
                                     stringResource(if (alarm.enabled) R.string.alarm_enabled else R.string.alarm_disabled),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
+                                if (showScheduling && alarm.enabled) {
+                                    val at = alarm.scheduledAtMillis
+                                    val status = when {
+                                        permissionRequired -> stringResource(R.string.not_scheduled)
+                                        at != null -> {
+                                            val date = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
+                                            val day = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+                                            stringResource(R.string.next_occurrence, day, date.toLocalTime().format(formatter))
+                                        }
+                                        alarm.lastDeliveredAtMillis != null -> stringResource(R.string.time_reached)
+                                        else -> stringResource(R.string.schedule_pending)
+                                    }
+                                    Text(status, style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                             val switchDescription = stringResource(R.string.alarm_switch_description)
                             Switch(

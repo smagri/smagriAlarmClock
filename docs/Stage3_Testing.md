@@ -53,15 +53,18 @@ hardens that implementation. Scheduling and ringing are later stages.
 With an authorised, unlocked Pixel connected, run:
 
 ```bash
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:connectedDebugAndroidTest
+./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+./gradlew -I tools/isolated-android-tests.init.gradle :app:connectedDebugAndroidTest
 ```
 
 The suite covers storage round trips, independent configurations, invalid data,
 rejected writes, unfinished atomic writes, UI storage-error recovery, existing
 editing controls, and activity recreation/relaunch. Tests use temporary fixtures.
-Connected testing may remove its app installation and data afterwards; use test
-data on the device and reinstall the debug APK before the manual checklist if
-needed. Do not use the connected suite to preserve a personal alarm dataset.
+The isolation script (added in Stage 4) targets the separate application ID
+`com.smagri.alarmclock.stage4tests`, protecting the normal installed app and its
+data from test cleanup. Do not run the plain connectedDebugAndroidTest command
+against your personal installation. Use ordinary installDebug without the
+isolation script to update your normal app before the manual checklist.
 
 Storage failures and corrupt-file recovery are exercised automatically; no manual
 file corruption or storage permission changes are required. A physical reboot is

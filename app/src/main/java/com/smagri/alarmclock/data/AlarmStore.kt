@@ -10,12 +10,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Call from an IO dispatcher. A malformed file is reported, never silently replaced. */
-class AlarmStore(file: File) {
+class AlarmStore(file: File) : AlarmStorage {
     private val file = AtomicFile(file)
     // Also serializes reads after activity recreation against an in-flight save.
     companion object { private val lock = Any() }
 
-    fun load(): List<AlarmListItem> = synchronized(lock) {
+    override fun load(): List<AlarmListItem> = synchronized(lock) {
         val text = try {
             file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
         } catch (error: FileNotFoundException) {
@@ -23,7 +23,8 @@ class AlarmStore(file: File) {
             return@synchronized emptyList()
         }
         val document = JSONObject(text)
-        require(document.getInt("version") == 1) { "Unsupported alarm file version" }
+        val version = document.getInt("version")
+        require(version in 1..2) { "Unsupported alarm file version" }
         val records = document.getJSONArray("alarms")
         val alarms = (0 until records.length()).map { index ->
             val record = records.getJSONObject(index)
@@ -34,13 +35,17 @@ class AlarmStore(file: File) {
                 repeatDays = (0 until days.length()).map { DayOfWeek.of(days.getInt(it)) }.toSet(),
                 label = record.getString("label"),
                 enabled = record.getBoolean("enabled"),
+                scheduledAtMillis = if (version >= 2 && !record.isNull("scheduledAtMillis"))
+                    record.getLong("scheduledAtMillis") else null,
+                lastDeliveredAtMillis = if (version >= 2 && !record.isNull("lastDeliveredAtMillis"))
+                    record.getLong("lastDeliveredAtMillis") else null,
             )
         }
         validate(alarms)
         alarms
     }
 
-    fun save(alarms: List<AlarmListItem>) = synchronized(lock) {
+    override fun save(alarms: List<AlarmListItem>) = synchronized(lock) {
         // Validate before opening the atomic file so invalid input cannot replace
         // the last successfully saved configuration.
         validate(alarms)
@@ -53,9 +58,11 @@ class AlarmStore(file: File) {
                 put("repeatDays", JSONArray(alarm.repeatDays.sortedBy { it.value }.map { it.value }))
                 put("label", alarm.label)
                 put("enabled", alarm.enabled)
+                put("scheduledAtMillis", alarm.scheduledAtMillis ?: JSONObject.NULL)
+                put("lastDeliveredAtMillis", alarm.lastDeliveredAtMillis ?: JSONObject.NULL)
             })
         }
-        val bytes = JSONObject().put("version", 1).put("alarms", records)
+        val bytes = JSONObject().put("version", 2).put("alarms", records)
             .toString().toByteArray(Charsets.UTF_8)
         val output = file.startWrite()
         try {
