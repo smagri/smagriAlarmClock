@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">smagriAlarmClock</string>
     <string name="alarms_title">Alarms</string>
-    <string name="configuration_notice">Alarm configurations are saved on this device. Scheduling is available; ringing will be added in Stage 5.</string>
+    <string name="configuration_notice">Alarms display an active screen and notification. Sound, snooze, and vibration will be added in later stages.</string>
     <string name="add_alarm">Add Alarm</string>
     <string name="edit_alarm">Edit Alarm</string>
     <string name="empty_alarms">No alarms yet. Tap + to add your first alarm.</string>
@@ -28,7 +28,25 @@
     <string name="not_scheduled">Not scheduled: alarm access required</string>
     <string name="scheduling_failed">Your configurations are saved, but scheduling could not be completed. Reopen the app to retry.</string>
     <string name="next_occurrence">Next: %1$s, %2$s</string>
-    <string name="time_reached">Time reached. Ringing and dismissal arrive in Stage 5. Toggle off/on to schedule again.</string>
+    <string name="previous_time_reached">Previous occurrence completed. Toggle off/on to schedule again.</string>
     <string name="schedule_pending">Schedule pending</string>
     <string name="settings_unavailable">Android could not open alarm access settings. Open Alarms &amp; reminders in Android Settings.</string>
+    <string name="alarm_awaiting_dismissal">Alarm active: waiting for dismissal</string>
+    <string name="alarm_channel">Active alarms</string>
+    <string name="alarm_channel_description">Alarm screens and Dismiss actions. Audio is added in a later stage.</string>
+    <string name="active_alarm_title">Alarm</string>
+    <string name="active_notification_text">%1$s — tap to open or Dismiss</string>
+    <string name="dismiss_alarm">Dismiss</string>
+    <string name="visual_alarm_notice">Visual alarm only. Sound, snooze, and vibration are not implemented yet.</string>
+    <plurals name="alarms_waiting">
+        <item quantity="one">%1$d more alarm waiting</item>
+        <item quantity="other">%1$d more alarms waiting</item>
+    </plurals>
+    <string name="dismiss_failed">Could not dismiss the alarm. Please try again.</string>
+    <string name="active_load_failed">Could not load active alarms. Tap to retry.</string>
+    <string name="loading_active_alarm">Loading active alarm…</string>
+    <string name="notifications_blocked">Notifications are blocked. Background alarms may be hidden.</string>
+    <string name="enable_alarm_notifications">Enable alarm notifications</string>
+    <string name="allow_full_screen">Allow full-screen alarms (optional)</string>
+    <string name="open_active_alarm">Open active alarm (%1$d)</string>
 </resources>

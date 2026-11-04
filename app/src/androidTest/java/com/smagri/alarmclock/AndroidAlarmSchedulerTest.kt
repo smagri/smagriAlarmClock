@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.smagri.alarmclock.data.AlarmStore
 import com.smagri.alarmclock.scheduling.AndroidAlarmScheduler
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
+import com.smagri.alarmclock.ringing.AlarmNotifications
 import java.io.File
 import java.time.LocalTime
 import java.util.UUID
@@ -72,9 +73,11 @@ class AndroidAlarmSchedulerTest {
             assertEquals(at, delivered?.lastDeliveredAtMillis)
             assertNull(delivered?.scheduledAtMillis)
             assertTrue(delivered!!.enabled)
+            assertEquals(listOf(at), delivered.activeOccurrences.map { it.atMillis })
         } finally {
             scheduler.cancel(id, at)
             store.save(original)
+            AlarmNotifications.update(context, original)
         }
     }
 }

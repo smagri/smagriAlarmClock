@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import android.util.AtomicFile
 import com.smagri.alarmclock.data.AlarmStore
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
+import com.smagri.alarmclock.ringing.AlarmOccurrence
 import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalTime
@@ -102,7 +103,7 @@ class AlarmStoreTest {
             setOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY), "Original", false)
         assertEquals(listOf(original), AlarmStore(file).load())
         AlarmStore(file).save(listOf(original))
-        assertEquals(2, org.json.JSONObject(file.readText()).getInt("version"))
+        assertEquals(3, org.json.JSONObject(file.readText()).getInt("version"))
         assertEquals(listOf(original), AlarmStore(file).load())
     }
 
@@ -114,5 +115,23 @@ class AlarmStoreTest {
         val delivered = alarm.copy(scheduledAtMillis = null)
         AlarmStore(file).save(listOf(delivered))
         assertEquals(listOf(delivered), AlarmStore(file).load())
+    }
+
+    @Test fun activeOccurrencesSurviveReloadAndKeepCapturedDisplayData() {
+        val alarm = AlarmListItem("active", LocalTime.of(9, 0), label = "New label",
+            activeOccurrences = listOf(
+                AlarmOccurrence(1_800_000_000_000L, LocalTime.of(7, 0), "Original \"label\""),
+                AlarmOccurrence(1_800_086_400_000L, LocalTime.of(8, 0), "")))
+        AlarmStore(file).save(listOf(alarm))
+        assertEquals(listOf(alarm), AlarmStore(file).load())
+    }
+
+    @Test fun versionTwoDeliveredOccurrencesAreNotRetroactivelyActivated() {
+        file.writeText("""{"version":2,"alarms":[{"id":"old","hour":7,"minute":0,"repeatDays":[],"label":"Old","enabled":true,"scheduledAtMillis":null,"lastDeliveredAtMillis":1000}]}""")
+        val alarm = AlarmStore(file).load().single()
+        assertTrue(alarm.activeOccurrences.isEmpty())
+        assertEquals(1000L, alarm.lastDeliveredAtMillis)
+        AlarmStore(file).save(listOf(alarm))
+        assertEquals(listOf(alarm), AlarmStore(file).load())
     }
 }

@@ -1,6 +1,10 @@
 package com.smagri.alarmclock.ui.alarms
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -33,6 +37,8 @@ import com.smagri.alarmclock.data.AlarmStore
 import com.smagri.alarmclock.scheduling.AlarmRepository
 import com.smagri.alarmclock.scheduling.AndroidAlarmScheduler
 import com.smagri.alarmclock.scheduling.ScheduleResult
+import com.smagri.alarmclock.ringing.AlarmNotifications
+import com.smagri.alarmclock.ringing.activeAlarms
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -52,6 +58,21 @@ fun AlarmApp(store: AlarmStore, repository: AlarmRepository? = null) {
     val context = LocalContext.current
     var permissionGranted by remember { mutableStateOf(true) }
     var schedulingFailed by remember { mutableStateOf(false) }
+    var notificationsAllowed by remember { mutableStateOf(true) }
+    var fullScreenAllowed by remember { mutableStateOf(true) }
+    var notificationRequested by rememberSaveable { mutableStateOf(false) }
+    val notificationRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        loadAttempt++
+    }
+
+    fun refreshPresentation(alarms: List<AlarmListItem>) {
+        if (repository != null) {
+            val access = AlarmNotifications.access(context)
+            notificationsAllowed = access.notifications
+            fullScreenAllowed = access.fullScreen
+            AlarmNotifications.update(context, alarms)
+        }
+    }
 
     fun applyResult(result: ScheduleResult) {
         alarms = result.alarms
@@ -87,6 +108,7 @@ fun AlarmApp(store: AlarmStore, repository: AlarmRepository? = null) {
                 repository?.reconcile() ?: ScheduleResult(store.load(), true)
             }
             applyResult(result)
+            refreshPresentation(result.alarms)
             loaded = true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -108,6 +130,7 @@ fun AlarmApp(store: AlarmStore, repository: AlarmRepository? = null) {
                     }
                 }
                 applyResult(result)
+                refreshPresentation(result.alarms)
                 if (closeEditor) editorId = null
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -137,6 +160,30 @@ fun AlarmApp(store: AlarmStore, repository: AlarmRepository? = null) {
             showScheduling = repository != null,
             permissionRequired = !permissionGranted,
             schedulingFailed = schedulingFailed,
+            notificationsBlocked = repository != null && !notificationsAllowed,
+            fullScreenRestricted = repository != null && notificationsAllowed && !fullScreenAllowed,
+            activeCount = activeAlarms(alarms).size,
+            onOpenActive = { context.startActivity(AlarmNotifications.activityIntent(context)) },
+            onNotificationAccess = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationRequested &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    notificationRequested = true
+                    notificationRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                }
+            },
+            onFullScreenAccess = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                            "package:${context.packageName}".toUri()))
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        error = R.string.settings_unavailable
+                    }
+                }
+            },
             onRequestPermission = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     try {

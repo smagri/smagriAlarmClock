@@ -2,8 +2,9 @@ package com.smagri.alarmclock.ui.alarms
 
 import java.time.DayOfWeek
 import java.time.LocalTime
+import com.smagri.alarmclock.ringing.AlarmOccurrence
 
-/** Configuration plus the current occurrence; ringing is added in Stage 5. */
+/** Configuration, next occurrence, and delivered occurrences awaiting dismissal. */
 data class AlarmListItem(
     val id: String,
     val time: LocalTime,
@@ -12,6 +13,7 @@ data class AlarmListItem(
     val enabled: Boolean = true,
     val scheduledAtMillis: Long? = null,
     val lastDeliveredAtMillis: Long? = null,
+    val activeOccurrences: List<AlarmOccurrence> = emptyList(),
 )
 
 val sampleAlarms = listOf(

@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:allowBackup="true"
@@ -13,6 +15,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SmagriAlarmClock">
+        <receiver android:name=".ringing.AlarmActionReceiver" android:exported="false" />
+        <activity android:name=".ringing.ActiveAlarmActivity" android:exported="false"
+            android:launchMode="singleTop" android:excludeFromRecents="true"
+            android:theme="@style/Theme.SmagriAlarmClock" />
         <receiver android:name=".scheduling.AlarmScheduleReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />

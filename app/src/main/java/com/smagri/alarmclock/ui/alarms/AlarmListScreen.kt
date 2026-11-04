@@ -46,6 +46,12 @@ fun AlarmListScreen(
     permissionRequired: Boolean = false,
     schedulingFailed: Boolean = false,
     onRequestPermission: () -> Unit = {},
+    notificationsBlocked: Boolean = false,
+    fullScreenRestricted: Boolean = false,
+    activeCount: Int = 0,
+    onOpenActive: () -> Unit = {},
+    onNotificationAccess: () -> Unit = {},
+    onFullScreenAccess: () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val formatter = alarmTimeFormatter()
@@ -85,6 +91,16 @@ fun AlarmListScreen(
             if (schedulingFailed) {
                 Text(stringResource(R.string.scheduling_failed), Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.error)
+            }
+            if (notificationsBlocked) {
+                Text(stringResource(R.string.notifications_blocked), Modifier.padding(horizontal = 16.dp))
+                TextButton(onClick = onNotificationAccess) { Text(stringResource(R.string.enable_alarm_notifications)) }
+            }
+            if (fullScreenRestricted) {
+                TextButton(onClick = onFullScreenAccess) { Text(stringResource(R.string.allow_full_screen)) }
+            }
+            if (activeCount > 0) {
+                TextButton(onClick = onOpenActive) { Text(stringResource(R.string.open_active_alarm, activeCount)) }
             }
             if (alarms.isEmpty()) {
                 Text(
@@ -130,7 +146,8 @@ fun AlarmListScreen(
                                             val day = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
                                             stringResource(R.string.next_occurrence, day, date.toLocalTime().format(formatter))
                                         }
-                                        alarm.lastDeliveredAtMillis != null -> stringResource(R.string.time_reached)
+                                        alarm.activeOccurrences.isNotEmpty() -> stringResource(R.string.alarm_awaiting_dismissal)
+                                        alarm.lastDeliveredAtMillis != null -> stringResource(R.string.previous_time_reached)
                                         else -> stringResource(R.string.schedule_pending)
                                     }
                                     Text(status, style = MaterialTheme.typography.bodySmall)

@@ -4,6 +4,8 @@ import com.smagri.alarmclock.data.AlarmStorage
 import com.smagri.alarmclock.scheduling.AlarmRepository
 import com.smagri.alarmclock.scheduling.AlarmScheduler
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
+import com.smagri.alarmclock.ringing.AlarmOccurrence
+import com.smagri.alarmclock.ringing.activeAlarms
 import java.time.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -165,5 +167,90 @@ class AlarmRepositoryTest {
         assertNotNull(result.alarms.first().scheduledAtMillis)
         assertNull(result.alarms.last().scheduledAtMillis)
         assertEquals(setOf("a"), scheduler.pending.keys)
+    }
+
+    private fun deliver(alarm: AlarmListItem): AlarmListItem {
+        val at = requireNotNull(alarm.scheduledAtMillis)
+        clock.now = Instant.ofEpochMilli(at)
+        return repo.delivered(alarm.id, at).alarms.single { it.id == alarm.id }
+    }
+
+    @Test fun deliveryCapturesTimeAndLabelWithoutDuplicatingActiveOccurrence() {
+        val pending = repo.saveConfigurations(listOf(alarm.copy(label = "Captured"))).alarms.single()
+        val delivered = deliver(pending)
+        assertEquals(listOf(AlarmOccurrence(pending.scheduledAtMillis!!, alarm.time, "Captured")), delivered.activeOccurrences)
+        assertTrue(repo.delivered(alarm.id, pending.scheduledAtMillis).alarms.single().activeOccurrences.size == 1)
+    }
+
+    @Test fun dismissOneTimeDisablesButKeepsConfiguration() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm)).alarms.single())
+        val result = repo.dismiss(active.id, active.activeOccurrences.single().atMillis).alarms.single()
+        assertFalse(result.enabled)
+        assertNull(result.scheduledAtMillis)
+        assertTrue(result.activeOccurrences.isEmpty())
+        assertEquals(alarm.id, result.id)
+        assertEquals(result, repo.reconcile().alarms.single())
+    }
+
+    @Test fun dismissRepeatingKeepsEnabledAndNextSelectedOccurrence() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm.copy(repeatDays = setOf(DayOfWeek.WEDNESDAY)))).alarms.single())
+        val next = active.scheduledAtMillis
+        val dismissed = repo.dismiss(active.id, active.activeOccurrences.single().atMillis).alarms.single()
+        assertTrue(dismissed.enabled)
+        assertTrue(dismissed.activeOccurrences.isEmpty())
+        assertEquals(next, dismissed.scheduledAtMillis)
+        assertEquals(next, scheduler.pending[alarm.id])
+    }
+
+    @Test fun staleDismissDoesNotDismissAnotherOccurrence() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm)).alarms.single())
+        assertEquals(active, repo.dismiss(active.id, active.lastDeliveredAtMillis!! - 1).alarms.single())
+        assertEquals(active, repo.dismiss("different", active.lastDeliveredAtMillis).alarms.single())
+    }
+
+    @Test fun failedDismissKeepsActiveStateAndEnabledFlag() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm)).alarms.single())
+        store.fail = true
+        assertThrows(IllegalStateException::class.java) { repo.dismiss(active.id, active.lastDeliveredAtMillis!!) }
+        assertEquals(active, store.alarms.single())
+    }
+
+    @Test fun disablingOrDeletingAnActiveAlarmRemovesItsActiveState() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm)).alarms.single())
+        val disabled = repo.saveConfigurations(listOf(active.copy(enabled = false))).alarms.single()
+        assertTrue(disabled.activeOccurrences.isEmpty())
+        repo.saveConfigurations(emptyList())
+        assertTrue(activeAlarms(store.alarms).isEmpty())
+    }
+
+    @Test fun editingActiveConfigurationKeepsSnapshotAndDismissDoesNotCancelNewSchedule() {
+        val active = deliver(repo.saveConfigurations(listOf(alarm.copy(label = "Original"))).alarms.single())
+        val edited = repo.saveConfigurations(listOf(active.copy(time = LocalTime.of(8, 30), label = "Edited"))).alarms.single()
+        assertEquals("Original", edited.activeOccurrences.single().label)
+        assertEquals(LocalTime.of(7, 0), edited.activeOccurrences.single().time)
+        val dismissed = repo.dismiss(edited.id, active.lastDeliveredAtMillis!!).alarms.single()
+        assertTrue(dismissed.enabled)
+        assertEquals(edited.scheduledAtMillis, dismissed.scheduledAtMillis)
+    }
+
+    @Test fun multipleDueAlarmsAreRetainedAndDismissedIndependently() {
+        val saved = repo.saveConfigurations(listOf(alarm, alarm.copy(id = "b"))).alarms
+        deliver(saved[0]); deliver(saved[1])
+        val queue = activeAlarms(store.alarms)
+        assertEquals(listOf("a", "b"), queue.map { it.alarmId })
+        repo.dismiss(queue[0].alarmId, queue[0].occurrence.atMillis)
+        assertEquals(listOf("b"), activeAlarms(store.alarms).map { it.alarmId })
+        assertFalse(store.alarms.first().enabled)
+        assertTrue(store.alarms.last().enabled)
+    }
+
+    @Test fun repeatedOccurrencesOfSameAlarmAreNotLostWhileWaiting() {
+        val first = deliver(repo.saveConfigurations(listOf(alarm.copy(repeatDays = DayOfWeek.entries.toSet()))).alarms.single())
+        val second = deliver(first)
+        assertEquals(2, second.activeOccurrences.size)
+        repo.dismiss(alarm.id, first.activeOccurrences.single().atMillis)
+        val remaining = store.alarms.single()
+        assertEquals(listOf(second.lastDeliveredAtMillis), remaining.activeOccurrences.map { it.atMillis })
+        assertTrue(remaining.enabled)
     }
 }

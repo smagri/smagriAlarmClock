@@ -2,6 +2,7 @@ package com.smagri.alarmclock.scheduling
 
 import com.smagri.alarmclock.data.AlarmStorage
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
+import com.smagri.alarmclock.ringing.AlarmOccurrence
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -10,6 +11,7 @@ data class ScheduleResult(
     val alarms: List<AlarmListItem>,
     val permissionGranted: Boolean,
     val schedulingFailed: Boolean = false,
+    val acceptedDelivery: Boolean = false,
 )
 
 /** Serializes UI and receiver updates. Call from an IO thread. */
@@ -25,7 +27,7 @@ class AlarmRepository(
         val saved = store.load()
         val planned = saved.map { alarm ->
             when {
-                !alarm.enabled -> alarm.copy(scheduledAtMillis = null)
+                !alarm.enabled -> alarm.copy(scheduledAtMillis = null, activeOccurrences = emptyList())
                 alarm.scheduledAtMillis != null -> alarm
                 alarm.repeatDays.isEmpty() && alarm.lastDeliveredAtMillis != null -> alarm
                 else -> alarm.copy(scheduledAtMillis = next(alarm))
@@ -44,7 +46,8 @@ class AlarmRepository(
                 // UI snapshots must not overwrite occurrence state advanced by a receiver.
                 old.copy(label = requested.label)
             } else {
-                requested.copy(scheduledAtMillis = next(requested), lastDeliveredAtMillis = null)
+                requested.copy(scheduledAtMillis = next(requested), lastDeliveredAtMillis = null,
+                    activeOccurrences = if (requested.enabled) old?.activeOccurrences.orEmpty() else emptyList())
             }
         }
         commit(saved, planned)
@@ -60,10 +63,22 @@ class AlarmRepository(
         val changed = alarm.copy(
             lastDeliveredAtMillis = triggerAtMillis,
             scheduledAtMillis = if (alarm.repeatDays.isEmpty()) null else next(alarm),
+            activeOccurrences = alarm.activeOccurrences + AlarmOccurrence(triggerAtMillis, alarm.time, alarm.label),
         )
-        // One-time alarms remain enabled pending Stage 5 dismissal; they are not
-        // silently re-armed for tomorrow by reopening the app.
-        commit(saved, saved.map { if (it.id == id) changed else it })
+        commit(saved, saved.map { if (it.id == id) changed else it }).copy(acceptedDelivery = true)
+    }
+
+    fun dismiss(id: String, atMillis: Long): ScheduleResult = synchronized(lock) {
+        val saved = store.load()
+        val alarm = saved.find { it.id == id }
+        if (alarm == null || alarm.activeOccurrences.none { it.atMillis == atMillis }) {
+            return@synchronized ScheduleResult(saved, scheduler.canSchedule())
+        }
+        val remaining = alarm.activeOccurrences.filterNot { it.atMillis == atMillis }
+        val disable = alarm.repeatDays.isEmpty() && remaining.isEmpty() &&
+            alarm.scheduledAtMillis == null && alarm.lastDeliveredAtMillis == atMillis
+        val changed = alarm.copy(activeOccurrences = remaining, enabled = alarm.enabled && !disable)
+        commit(saved, saved.map { if (it.id == id) changed else it }, rescheduleAll = true)
     }
 
     private fun next(alarm: AlarmListItem): Long? =

@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.smagri.alarmclock.data.AlarmStore
+import com.smagri.alarmclock.ringing.AlarmNotifications
+import com.smagri.alarmclock.ringing.activeAlarms
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -21,10 +23,14 @@ class AlarmScheduleReceiver : BroadcastReceiver() {
                 if (intent.action == AndroidAlarmScheduler.ACTION_DELIVER) {
                     val id = intent.getStringExtra(AndroidAlarmScheduler.EXTRA_ID)
                     if (id != null && intent.hasExtra(AndroidAlarmScheduler.EXTRA_AT)) {
-                        repository.delivered(id, intent.getLongExtra(AndroidAlarmScheduler.EXTRA_AT, 0))
+                        val at = intent.getLongExtra(AndroidAlarmScheduler.EXTRA_AT, 0)
+                        val result = repository.delivered(id, at)
+                        val first = activeAlarms(result.alarms).firstOrNull()
+                        AlarmNotifications.update(app, result.alarms,
+                            alert = result.acceptedDelivery && first?.alarmId == id && first.occurrence.atMillis == at)
                     }
                 } else {
-                    repository.reconcile()
+                    AlarmNotifications.update(app, repository.reconcile().alarms)
                 }
                 app.sendBroadcast(Intent(AndroidAlarmScheduler.ACTION_UPDATED).setPackage(app.packageName))
             } catch (error: Exception) {

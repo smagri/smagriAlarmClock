@@ -2,6 +2,7 @@ package com.smagri.alarmclock.data
 
 import android.util.AtomicFile
 import com.smagri.alarmclock.ui.alarms.AlarmListItem
+import com.smagri.alarmclock.ringing.AlarmOccurrence
 import java.io.File
 import java.io.FileNotFoundException
 import java.time.DayOfWeek
@@ -24,7 +25,7 @@ class AlarmStore(file: File) : AlarmStorage {
         }
         val document = JSONObject(text)
         val version = document.getInt("version")
-        require(version in 1..2) { "Unsupported alarm file version" }
+        require(version in 1..3) { "Unsupported alarm file version" }
         val records = document.getJSONArray("alarms")
         val alarms = (0 until records.length()).map { index ->
             val record = records.getJSONObject(index)
@@ -39,6 +40,15 @@ class AlarmStore(file: File) : AlarmStorage {
                     record.getLong("scheduledAtMillis") else null,
                 lastDeliveredAtMillis = if (version >= 2 && !record.isNull("lastDeliveredAtMillis"))
                     record.getLong("lastDeliveredAtMillis") else null,
+                activeOccurrences = if (version >= 3) {
+                    val active = record.getJSONArray("activeOccurrences")
+                    (0 until active.length()).map { i ->
+                        val occurrence = active.getJSONObject(i)
+                        AlarmOccurrence(occurrence.getLong("atMillis"),
+                            LocalTime.of(occurrence.getInt("hour"), occurrence.getInt("minute")),
+                            occurrence.getString("label"))
+                    }
+                } else emptyList(),
             )
         }
         validate(alarms)
@@ -60,9 +70,19 @@ class AlarmStore(file: File) : AlarmStorage {
                 put("enabled", alarm.enabled)
                 put("scheduledAtMillis", alarm.scheduledAtMillis ?: JSONObject.NULL)
                 put("lastDeliveredAtMillis", alarm.lastDeliveredAtMillis ?: JSONObject.NULL)
+                put("activeOccurrences", JSONArray().apply {
+                    alarm.activeOccurrences.forEach { occurrence ->
+                        put(JSONObject().apply {
+                            put("atMillis", occurrence.atMillis)
+                            put("hour", occurrence.time.hour)
+                            put("minute", occurrence.time.minute)
+                            put("label", occurrence.label)
+                        })
+                    }
+                })
             })
         }
-        val bytes = JSONObject().put("version", 2).put("alarms", records)
+        val bytes = JSONObject().put("version", 3).put("alarms", records)
             .toString().toByteArray(Charsets.UTF_8)
         val output = file.startWrite()
         try {
@@ -80,5 +100,9 @@ class AlarmStore(file: File) : AlarmStorage {
         require(alarms.all { it.time.second == 0 && it.time.nano == 0 }) {
             "Alarm times must have minute precision"
         }
+        require(alarms.all { alarm ->
+            alarm.activeOccurrences.map { it.atMillis }.distinct().size == alarm.activeOccurrences.size &&
+                alarm.activeOccurrences.all { it.time.second == 0 && it.time.nano == 0 }
+        }) { "Invalid active occurrences" }
     }
 }
