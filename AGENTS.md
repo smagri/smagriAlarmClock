@@ -18,21 +18,6 @@ Detailed application requirements will be maintained in REQUIREMENTS.md.
 - Test device: Google Pixel 8 Pro
 - Build system: Gradle, using the existing project configuration
 
-## Codex working rules
-
-1. Work only on the smagriAlarmClock project.
-2. Do not inspect, create, modify, or delete unrelated files outside the project directory.
-3. Do not modify the user's Emacs configuration or other development environments.
-4. Preserve the existing Android Studio project structure and configuration unless changes are necessary.
-5. Make changes in small, independently testable increments.
-6. Before making significant architectural changes, explain the proposed approach and obtain approval.
-7. Prefer straightforward, maintainable Kotlin code over unnecessary complexity.
-8. Follow existing project conventions wherever practical.
-9. Do not introduce additional libraries or Gradle dependencies without explaining why they are needed.
-10. Do not change Codex configuration, permissions, or sandbox settings.
-11. Do not run destructive commands or delete project files without explicit approval.
-12. Do not create Git commits, push, pull, merge, rebase, or reset branches unless explicitly requested.
-13. Do not access GitHub directly from Luqa.
 
 ## Application requirements
 
@@ -68,18 +53,41 @@ Consult REQUIREMENTS.md when it exists. If an implementation decision depends on
 
 ## Communication and workflow
 
-- Explain planned changes before implementing each development stage.
-- Summarise which files were changed and why.
-- Report build errors, unresolved issues, and relevant warnings.
-- Keep changes focused on the current task.
-- Do not begin implementing additional features without approval.
+- Codex may independently implement, debug, build, and test the currently approved development stage.
+- Do not require approval for routine coding changes or fixes within the approved stage.
+- Request approval before beginning a new development stage.
+- Request approval before changing agreed application requirements.
+- Summarise significant changes and test results.
+- Stop and report when a major design decision or unresolved blocker requires user input.
+
+## Codex working rules
+
+1. Codex is the primary development assistant for smagriAlarmClock on Luqa.
+2. Codex may independently create, modify, and delete project files as necessary to implement approved requirements.
+3. Codex may inspect and modify development-related files outside the project when necessary for building, testing, or troubleshooting. Explain significant changes first.
+4. Do not modify unrelated personal files, Emacs configuration, or other projects without explicit approval.
+5. Codex may run Gradle builds, automated tests, lint, ADB, and other development tools independently, subject to its configured sandbox and approval requirements.
+6. Preserve the existing Android Studio project structure unless changes are justified.
+7. Work incrementally, following REQUIREMENTS.md.
+8. Codex may independently fix ordinary compilation errors, test failures, and minor defects.
+9. Explain and obtain approval before introducing major dependencies, making significant architectural changes, or changing agreed functional requirements.
+10. Report completed work, tests, unresolved problems, and significant file changes.
+11. Do not modify Codex configuration or security settings without explicit approval.
+12. Do not run destructive system commands or modify unrelated system configurations without explicit approval.
 
 ## Git workflow
 
-The project uses ordinary Git working repositories on two machines:
-
-- Luqa: Codex development and local Android Studio.
-- Texas: Android Studio development and the only machine that communicates with GitHub.
+1. Luqa is the primary Codex development machine.
+2. Texas is the only machine permitted to communicate with GitHub.
+3. Codex may run local read-only Git commands, including status, diff, and log.
+4. Codex may stage and commit completed, tested project changes locally on Luqa.
+5. Codex may create local Git branches when useful.
+6. Codex must not independently run Git push, pull, fetch, merge, rebase, reset, clean, or force operations.
+7. Codex must not access GitHub or other remote Git repositories.
+8. Do not amend existing commits or rewrite Git history without explicit approval.
+9. Repository synchronisation between Luqa, Texas, and GitHub remains controlled by the user.
+10. Before a local commit, report the changes being committed and ensure unrelated files are not included.
+  
 
 Repository synchronisation is controlled by the user. Codex must not independently perform Git synchronisation or push changes.
 
