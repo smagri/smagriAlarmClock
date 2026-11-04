@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">smagriAlarmClock</string>
+    <string name="alarms_title">Alarms</string>
+    <string name="sample_notice">Sample alarms only. Switches and Add Alarm are unavailable in this preview. These alarms will not ring.</string>
+    <string name="add_alarm_unavailable">Add Alarm (not available yet)</string>
+    <string name="one_time">One-time</string>
+    <string name="default_sound">Sound: Android default alarm</string>
+    <string name="sample_enabled">Enabled in sample</string>
+    <string name="sample_disabled">Disabled in sample</string>
+    <string name="alarm_switch_description">Alarm enabled state (preview only)</string>
 </resources>
