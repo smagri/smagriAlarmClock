@@ -1,11 +1,26 @@
 <resources>
     <string name="app_name">smagriAlarmClock</string>
     <string name="alarms_title">Alarms</string>
-    <string name="sample_notice">Sample alarms only. Switches and Add Alarm are unavailable in this preview. These alarms will not ring.</string>
-    <string name="add_alarm_unavailable">Add Alarm (not available yet)</string>
+    <string name="configuration_notice">Alarm configurations are saved on this device. Alarms will not ring yet.</string>
+    <string name="add_alarm">Add Alarm</string>
+    <string name="edit_alarm">Edit Alarm</string>
+    <string name="empty_alarms">No alarms yet. Tap + to add your first alarm.</string>
     <string name="one_time">One-time</string>
     <string name="default_sound">Sound: Android default alarm</string>
-    <string name="sample_enabled">Enabled in sample</string>
-    <string name="sample_disabled">Disabled in sample</string>
-    <string name="alarm_switch_description">Alarm enabled state (preview only)</string>
+    <string name="alarm_enabled">Enabled</string>
+    <string name="alarm_disabled">Disabled</string>
+    <string name="alarm_switch_description">Alarm enabled state</string>
+    <string name="choose_time">Time: %1$s</string>
+    <string name="alarm_label">Label (optional)</string>
+    <string name="repeat_days">Repeat days</string>
+    <string name="no_days_hint">No days selected means a one-time alarm.</string>
+    <string name="save_alarm">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete_alarm">Delete Alarm</string>
+    <string name="delete_confirmation">Delete this alarm? This cannot be undone.</string>
+    <string name="storage_error">Alarm storage error</string>
+    <string name="load_failed">Saved alarms could not be loaded. They have not been replaced. Please retry.</string>
+    <string name="save_failed">Your changes could not be saved. Please try again.</string>
+    <string name="retry">Retry</string>
+    <string name="ok">OK</string>
 </resources>
